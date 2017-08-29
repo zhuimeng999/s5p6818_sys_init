@@ -194,7 +194,7 @@ void arm_gic_dist_init(arm_gic_dist_t *gicd)
 		uart_printf("icenable: %X\n", gicd->icenable[i]);
 	}
 
-	for(uint32_t i = 0; i < irq_data.irq_num; i++)
+	for(uint32_t i = 32; i < irq_data.irq_num; i++)
 	{
 		arm_gic_irq_disable(i);
 		arm_gic_irq_set_type(i, ARM_GIC_TYPE_EDGE);
@@ -207,14 +207,26 @@ void arm_gic_dist_init(arm_gic_dist_t *gicd)
 	gicd->ctrl.reg_field.enablegrp1 = 1;
 }
 
-void arm_gic_init(void)
+void arm_gic_generic_init(void)
 {
 	arm_gic_reg_set_t *reg_set = (arm_gic_reg_set_t *)PHY_BASEADDR_INTC_MODULE;
 
 	arm_gic_dist_init(&reg_set->gicd);
-	arm_gic_cpu_init(&reg_set->gicc);
-	irq_enable();
-	fiq_enable();
+}
+
+void arm_gic_percpu_init(uint32_t cpu_id)
+{
+  arm_gic_reg_set_t *reg_set = (arm_gic_reg_set_t *)PHY_BASEADDR_INTC_MODULE;
+  arm_gic_cpu_t *gicc = &reg_set->gicc;
+
+  (void )cpu_id;
+  gicc->PMR = 0xFF;
+  irq_data.irq_mask = gicc->PMR;
+  uart_printf("irq mask = %X\n", irq_data.irq_mask);
+  gicc->CTLR = 0x3;
+
+  irq_enable();
+  fiq_enable();
 }
 
 void arm_gic_check_pend(void)

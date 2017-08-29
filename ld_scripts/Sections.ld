@@ -23,11 +23,8 @@ ENTRY(Vectors)
 INTERNAL_SRAM_START = 0xFFFF0000;
 INTERNAL_SRAM_SIZE = 32 * 1024;
 
-STACK_UND_SIZE	= 1 * 1024 ;	/* 256KB */
-STACK_ABT_SIZE	= 1 * 1024 ;	/* 256KB */
-STACK_IRQ_SIZE	= 1 * 1024 ;	/* 256KB */
-STACK_FIQ_SIZE	= 1 * 1024 ;	/* 256KB */
-STACK_SVC_SIZE	= 1 * 1024 ;	/* 1 MB */
+__stack_percpu_size	= 2 * 1024;
+__stack_main_additional = 1*1024;
 
 MEMORY {
 	iram (rwx) : ORIGIN = INTERNAL_SRAM_START, LENGTH = INTERNAL_SRAM_SIZE
@@ -77,28 +74,10 @@ SECTIONS
 	.stack (NOLOAD) :
 	{
 	 	. = ALIGN(8);
-		PROVIDE(__stack_start = .);
-		PROVIDE(__stack_und_start = .);
-		. += STACK_UND_SIZE;
-		PROVIDE(__stack_und_end = .);
-		. = ALIGN(8);
-		PROVIDE(__stack_abt_start = .);
-		. += STACK_ABT_SIZE;
-		PROVIDE(__stack_abt_end = .);
-		. = ALIGN(8);
-		PROVIDE(__stack_irq_start = .);
-		. += STACK_IRQ_SIZE;
-		PROVIDE(__stack_irq_end = .);
-		. = ALIGN(8);
-		PROVIDE(__stack_fiq_start = .);
-		. += STACK_FIQ_SIZE;
-		PROVIDE(__stack_fiq_end = .);
-		. = ALIGN(8);
-		PROVIDE(__stack_svc_start = .);
-		. += STACK_SVC_SIZE;
-		PROVIDE(__stack_svc_end = .);
-		. = ALIGN(8);
-		PROVIDE(__stack_end = .);
+	 	__stack_start = . ;
+		. += (__stack_percpu_size * 8);
+		. += __stack_main_additional;
+		__stack_end = . ;
 	} > iram
 	__image__end__ = .;
 	end = .;

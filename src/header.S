@@ -73,6 +73,14 @@ LAUNCH_ADDR:
 	.word 0xFFFF0000
 
 reset_handler:
+	/* get clustor cpu id */
+	mrc		p15, 0, r7, c0, c0, 5
+	and		r7, r7, #0xFF
+
+	cmp		r7, #0
+	bne		setup_stack
+
+	/* init gpio, should only do once */
 	movw	r0, #(GPIOC_BASE & 0xFFFF)
 	movt	r0, #(GPIOC_BASE >> 16)
 
@@ -90,31 +98,45 @@ reset_handler:
     orr     r1, r1, #(1 << 12)
     str     r1, [r0, #GPIOxOUT]
 
-
-	mrc		p15, 0, r8, c0, c0, 5
-	and		r8, r8, #0xFF
-	
-	/*clear bss*/
+	/*clear bss, this should only do once */
 	ldr		r4, =__bss_start__
 	ldr		r5, =__bss_end__
 	mov		r6, #0
-clrbss:
+clr_bss:
 	cmp		r4, r5
 	strlo	r6, [r4], #4
-	bne		clrbss
+	bne		clr_bss
 
-	/* setup stack */
-	msr		cpsr_c, #(PE_MODE_IRQ | CPSR_IRQ | CPSR_FIQ)
-	ldr		sp, =__stack_irq_end
+setup_stack:
+	/* setup main stack, check if this is main cpu */
+	cmp		r7, #0
+
+	ldr		r4,	_stack_end
+	ldr		r5, _stack_per_cpu_size
+	subne	r6, r7, #1
+	moveq	r6, #7
+	mul		r5, r5, r6
+	sub		r4,	r4, r5
 
 	msr		cpsr_c, #(PE_MODE_FIQ | CPSR_IRQ | CPSR_FIQ)
-	ldr		sp, =__stack_fiq_end
+	mov		sp,	r4
+	sub		r4, #512
+
+	msr		cpsr_c, #(PE_MODE_IRQ | CPSR_IRQ | CPSR_FIQ)
+	mov		sp, r4
+	sub		r4, #512
 
 	/* disable irq, fiq, change to svc mode */
 	msr		cpsr_c, #(PE_MODE_SVC | CPSR_IRQ | CPSR_FIQ)
-	ldr		sp, =__stack_svc_end
+	mov		sp, r4
 
-	bl		main
+	mov		r0, r7
+	mov		r1, sp
+
+	cmp		r7, #0
+	bleq	boot_main
+	blne	sub_cpu_main
+
 	b		.
 
 panic:
@@ -162,6 +184,14 @@ _dapt_handler:
 	bl	printf_lr
 	b .
 
+.align	2
+_stack_start:
+	.word	__stack_start
+_stack_end:
+	.word	__stack_end
+
+_stack_per_cpu_size:
+	.word	__stack_percpu_size
 
 stub:
 	.space	0x1fc - (stub - Vectors)

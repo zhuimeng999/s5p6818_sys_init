@@ -130,7 +130,9 @@ typedef enum {
 
 typedef void (*irq_handler_t)(void);
 
-void arm_gic_init(void);
+void arm_gic_generic_init(void);
+void arm_gic_percpu_init(uint32_t cpu_id);
+
 void arm_gic_check_pend(void);
 void request_irq(arm_gic_irq_index_t index, irq_handler_t handler);
 
