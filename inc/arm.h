@@ -37,4 +37,55 @@ static inline uint32_t getCupId (void)
 
 uint64_t getCntpct(void);
 
+static inline void arm_irq_disable(void)
+{
+	uint32_t tmp;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n"
+		"orr %0, %0, #(1<<7)\n"
+		"msr cpsr_cxsf, %0"
+		: "=r" (tmp)
+		:
+		: "cc");
+}
+
+static inline void arm_fiq_disable(void)
+{
+	uint32_t tmp;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n"
+		"orr %0, %0, #(1<<6)\n"
+		"msr cpsr_cxsf, %0"
+		: "=r" (tmp)
+		:
+		: "cc");
+}
+
+static inline void arm_irq_enable(void)
+{
+	uint32_t tmp;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n"
+		"bic %0, %0, #(1<<7)\n"
+		"msr cpsr_c, %0"
+		: "=r" (tmp)
+		:
+		: "cc");
+}
+
+static inline void arm_fiq_enable(void)
+{
+	uint32_t tmp;
+
+	__asm__ __volatile__(
+		"mrs %0, cpsr\n"
+		"bic %0, %0, #(1<<6)\n"
+		"msr cpsr_c, %0"
+		: "=r" (tmp)
+		:
+		: "cc");
+}
 #endif /* ARM_H_ */

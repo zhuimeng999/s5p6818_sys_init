@@ -55,7 +55,8 @@ void SetVectorLocation(uint32_t CPUID, uint32_t LowHigh)
 
 void subCpuBoot(void)
 {
-	uart_printf("cpu id: %X\n", getCupId());
-	SetVectorLocation(1, 1);
-	BringUpSlaveCPU(1);
+	for(uint32_t i = 1; i < 2; i++){
+		SetVectorLocation(i, 1);
+		BringUpSlaveCPU(i);
+	}
 }

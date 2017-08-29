@@ -134,6 +134,7 @@ setup_stack:
 	mov		r1, sp
 
 	cmp		r7, #0
+	ldrex	r0, [r4]
 	bleq	boot_main
 	blne	sub_cpu_main
 

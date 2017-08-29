@@ -24,6 +24,7 @@
 #include "tick.h"
 #include "pll_clk.h"
 #include "subCpuBoot.h"
+#include "bus.h"
 
 /*
  *
@@ -160,8 +161,16 @@ int boot_main(uint32_t cpu_id, uint32_t current_stack)
   timer_module_enable();
 
   tick_init();
-  subCpuBoot();
-  uart_printf("main cpu boot finished\n");
+//  subCpuBoot();
+  init_bus();
+
+  {
+	  static uint32_t lock = 0;
+	  uint32_t tmp;
+
+	  tmp = __sync_bool_compare_and_swap(&lock, 0, 1);
+	  uart_printf("tmp = %u\n", tmp);
+  }
 
   while (1)
   {

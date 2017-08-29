@@ -13,6 +13,7 @@
 #include "tieoff.h"
 #include "clk_gen.h"
 #include "pll_clk.h"
+#include "lock.h"
 
 struct s5p6818_uart_reg {
 	volatile uint32_t ulcon;
@@ -132,16 +133,22 @@ void uart_write(char *str, int len) {
 	}
 }
 static char buf[2048];
+
+//static spin_lock_t uart_printf_lock = 0;
+
 int uart_printf(char *fmt, ...) {
 	va_list va_arg;
 	va_start(va_arg, fmt);
 
 	int len = vsnprintf(buf, 2048, fmt, va_arg);
 	buf[len] = '\0';
+
 	uart_write(buf, len);
+
 	va_end(va_arg);
 	return len;
 }
+
 int uart_is_busy(void) {
 	struct s5p6818_uart_reg * uart = UART0;
 
