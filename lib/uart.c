@@ -143,7 +143,9 @@ int uart_printf(char *fmt, ...) {
 	int len = vsnprintf(buf, 2048, fmt, va_arg);
 	buf[len] = '\0';
 
+//	spin_lock(&uart_printf_lock);
 	uart_write(buf, len);
+//	spin_unlock(&uart_printf_lock);
 
 	va_end(va_arg);
 	return len;

@@ -55,7 +55,7 @@ SWIV:
 PAbortV:
 	.word panic
 DAbortV:
-	.word panic
+	.word _dapt_handler
 UnusedV:
 	.word panic
 IRQV:
@@ -120,11 +120,11 @@ setup_stack:
 
 	msr		cpsr_c, #(PE_MODE_FIQ | CPSR_IRQ | CPSR_FIQ)
 	mov		sp,	r4
-	sub		r4, #512
+	sub		r4, #256
 
 	msr		cpsr_c, #(PE_MODE_IRQ | CPSR_IRQ | CPSR_FIQ)
 	mov		sp, r4
-	sub		r4, #512
+	sub		r4, #256
 
 	/* disable irq, fiq, change to svc mode */
 	msr		cpsr_c, #(PE_MODE_SVC | CPSR_IRQ | CPSR_FIQ)
@@ -134,12 +134,12 @@ setup_stack:
 	mov		r1, sp
 
 	cmp		r7, #0
-	ldrex	r0, [r4]
+
 	bleq	boot_main
 	blne	sub_cpu_main
 
 	b		.
-
+	
 panic:
 	movw	r0, #(GPIOC_BASE & 0xFFFF)
 	movt	r0, #(GPIOC_BASE >> 16)
@@ -150,41 +150,139 @@ panic:
     str     r1, [r0, #GPIOxOUT]
 	b		.
 	
-//.align	5
+_und_handler:
+	ldr sp, =__stack_end
+	mov	r0, #2
+	mov	r1, lr
+	bl	printf_lr
+	b .
+	
+_pabt_handler:
+	ldr sp, =__stack_end
+	mov	r0, #3
+	mov	r1, lr
+	bl	printf_lr
+	b	.
+	
+_dapt_handler:
+	ldr sp, =__stack_end
+	sub r0, lr, #8	/* abort location */
+	ldr	r1, [r0]	/* abort instruct */
+	mrc	p15, 0, r2, c5, c0, 0	/*dfsr*/
+	mrc	p15, 0, r3, c6, c0, 0   /*dfar*/
+	bl	report_data_abort
+	b .
+	
 _irq_handler:
 	/* only save r0 - r3, gcc will do last */
 	sub		lr, lr, #4
 	stmfd	sp!, {r0-r12, lr}
 	bl		do_irq
 	ldmfd	sp!, {r0-r12, pc}^
-	
-
 
 _fiq_handler:
-	ldr sp, =0xFFFF8000
 	mov	r0, #1
 	mov	r1, lr
 	bl	printf_lr
 	b .
-_und_handler:
-	ldr sp, =0xFFFF8000
-	mov	r0, #2
-	mov	r1, lr
-	bl	printf_lr
-	b .
-_pabt_handler:
-	ldr sp, =0xFFFF8000
-	mov	r0, #3
-	mov	r1, lr
-	bl	printf_lr
-	b	.
-_dapt_handler:
-	ldr sp, =0xFFFF8000
-	mov	r0, #4
-	mov	r1, lr
-	bl	printf_lr
-	b .
 
+stub:
+	.space	0x1fc - (stub - Vectors)
+signature:
+	.word   (('N' << 0) | ('S' << 8) | ('I' << 16) | ('H' << 24))
+	
+_mmu_init:
+	/* disable dcache*/
+	mrc		p15, 0, r0, c1, c0, 0
+	bic		r0, r0, #(1 << 2)
+	mcr		p15, 0, r0, c1, c0, 0
+	
+	/* get dcache info */
+	mov		r0, #0
+	mcr		p15, 2, r0, c0, c0, 0
+	mrc		p15, 1, r4, c0, c0, 0
+	and		r1, r4, #0x7
+	add		r1, r1, #0x4
+	ldr		r3, =((1 << 15) - 1)
+	and		r2, r3, r4, lsr #13
+	ldr		r3, =((1 << 10) - 1)
+	and		r3, r3, r4, lsr #3
+	clz		r4, r3
+	mov		r5, #0
+	
+	/* invalid dcache */
+way_loop:
+	mov		r6, #0
+set_loop:
+	orr		r7, r0, r5, lsr r4
+	orr		r7, r7, r6, lsr r1
+	mcr		p15, 0, r7, c7,c6, 2
+	add		r6, r6, #1
+	cmp		r6, r2
+	ble		set_loop
+	add		r5, r5, #1
+	cmp 	r5, r3
+	ble		way_loop
+	
+	/* setting tlb */
+	mov		r0, #0
+	mcr		p15, 0, r0, c2, c0, 2
+	
+	ldr		r1, =0x55555555
+	mcr		p15, 0, r1, c3, c0, 0
+	
+	mrc		p15, 0, r1, c1, c0, 0
+	bic		r1, r1, #(1 << 29)
+	mcr		p15, 0, r1, c1, c0, 0
+	
+	ldr		r0, =ttb0_base
+	mov		r1, #0x2B
+	orr		r1, r0, r1
+	mcr		p15, 0, r1, c2, c0, 0
+	
+	ldr		r4, =0x00100000
+	ldr		r2, =0x00015C06
+	ldr		r3, =1024
+	
+loop:
+	str		r2, [r0], #4
+	add		r2,	r2,	r4
+	subs	r3, #1
+	bne		loop
+	
+	ldr		r2, =0x40010C02
+	ldr		r3, =3071
+loop2:
+	str		r2, [r0], #4
+	add		r2, r2, r4
+	subs	r3, #1
+	bne		loop2
+	
+	ldr		r2,=0x00015C06
+	str		r2, [r0], #4
+
+	mrrc	p15, 1, r0, r1, c15
+	orr		r0, r0, #(1 << 6)
+	mcrr	p15, 1, r0, r1, c15
+	
+	mrc		p15, 0, r1, c1, c0, 0
+	orr		r1, r1, #(1 << 2)
+	orr		r1, r1, #(1 << 12)
+	orr		r1, r1, #0x1
+	mcr		p15, 0, r1, c1, c0, 0
+
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	
+	bx		lr
+	
 .align	2
 _stack_start:
 	.word	__stack_start
@@ -193,8 +291,3 @@ _stack_end:
 
 _stack_per_cpu_size:
 	.word	__stack_percpu_size
-
-stub:
-	.space	0x1fc - (stub - Vectors)
-signature:
-	.word   (('N' << 0) | ('S' << 8) | ('I' << 16) | ('H' << 24))

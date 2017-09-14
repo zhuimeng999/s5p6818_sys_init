@@ -23,7 +23,7 @@ ENTRY(Vectors)
 INTERNAL_SRAM_START = 0xFFFF0000;
 INTERNAL_SRAM_SIZE = 32 * 1024;
 
-__stack_percpu_size	= 2 * 1024;
+__stack_percpu_size	= 1 * 1024;
 __stack_main_additional = 1*1024;
 
 MEMORY {
@@ -71,6 +71,13 @@ SECTIONS
 		*(.comment*)
 	} > iram
 
+	
+	tlb : {
+		. = ALIGN(0x4000);
+		ttb0_base = .;
+		. += 0x1000;
+	} >iram
+	
 	.stack (NOLOAD) :
 	{
 	 	. = ALIGN(8);
@@ -79,11 +86,12 @@ SECTIONS
 		. += __stack_main_additional;
 		__stack_end = . ;
 	} > iram
+	
 	__image__end__ = .;
 	end = .;
 }
 
-__image_size__ = (__image__end__ - __image_start__ + 0x10 ) & 0xFFFFFFF0;
+__image_size__ = (__image__end__ - __image_start__ + 0x10 - 1 ) & 0xFFFFFFF0;
 ASSERT(__image_size__ < INTERNAL_SRAM_SIZE, "error: image is too big!!!");
 
 

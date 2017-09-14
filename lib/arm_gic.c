@@ -254,6 +254,11 @@ void do_irq(void)
 	gicc->EOIR = irq_num;
 }
 
+void report_data_abort(uint32_t address, uint32_t inst, uint32_t dfsr, uint32_t dfar)
+{
+	uart_printf("address = %X, inst=%X, dfsr = %X, dfar = %X\n", address, inst, dfsr, dfar);
+}
+
 void request_irq(arm_gic_irq_index_t index, irq_handler_t handler)
 {
 	irq_data.irq_handler[index] = handler;

@@ -25,6 +25,7 @@
 #include "pll_clk.h"
 #include "subCpuBoot.h"
 #include "bus.h"
+#include "mmu.h"
 
 /*
  *
@@ -163,15 +164,24 @@ int boot_main(uint32_t cpu_id, uint32_t current_stack)
   tick_init();
 //  subCpuBoot();
   init_bus();
+  mmu_init();
 
   {
-	  static uint32_t lock = 0;
-	  uint32_t tmp;
-
-	  tmp = __sync_bool_compare_and_swap(&lock, 0, 1);
-	  uart_printf("tmp = %u\n", tmp);
+    /* memery test */
+#define MEM_TEST_VALUE 0x55555555
+    *(volatile uint32_t *)0xFFFFFFFC = MEM_TEST_VALUE;
+    uart_printf("mem %X\n", *(volatile uint32_t *)0xFFFFFFFC);
   }
+  while (uart_is_busy())
+    ;
+  {
+    static uint32_t lock = 0;
+    uint32_t tmp;
 
+    __clear_cache(&lock, &tmp);
+    tmp = __sync_bool_compare_and_swap(&lock, 0, 1);
+    uart_printf("tmp = %u\n", tmp);
+  }
   while (1)
   {
 
