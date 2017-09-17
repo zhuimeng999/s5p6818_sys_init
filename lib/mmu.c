@@ -247,10 +247,92 @@ typedef union {
 
 typedef union {
   struct {
+    uint32_t type : 2;
+    uint32_t reserved0 : 30;
+  } invalid;
+  struct {
+    uint32_t type : 2;
+    uint32_t PXN : 1;
+    uint32_t NS : 1;
+    uint32_t SBZ : 1;
+    uint32_t Domain : 4;
+    uint32_t imp_def : 1;
+    uint32_t base_addr : 22;
+  } page;
+  struct {
+    uint32_t PXN : 1;
+    uint32_t type : 1;
+    uint32_t B : 1;
+    uint32_t C : 1;
+    uint32_t XN : 1;
+    uint32_t Domain: 4;
+    uint32_t imp_def : 1;
+    uint32_t AP : 2;
+    uint32_t TEX : 3;
+    uint32_t AP2: 1;
+    uint32_t S : 1;
+    uint32_t nG : 1;
+    uint32_t super : 1;
+    uint32_t NS : 1;
+    uint32_t base_addr : 12;
+  } section;
+  struct {
+    uint32_t PXN : 1;
+    uint32_t type : 1;
+    uint32_t B : 1;
+    uint32_t C : 1;
+    uint32_t XN : 1;
+    uint32_t ext_base_addr39_36: 4;
+    uint32_t imp_def : 1;
+    uint32_t AP : 2;
+    uint32_t TEX : 3;
+    uint32_t AP2: 1;
+    uint32_t S : 1;
+    uint32_t nG : 1;
+    uint32_t super : 1;
+    uint32_t NS : 1;
+    uint32_t ext_base_addr35_32 : 4;
+    uint32_t super_base_addr : 8;
+  } super_section;
+  uint32_t value;
+} l1_desc_t;
 
-  }
-  uint32_t cache_value;
-};
+typedef char size_check_l1_desc_t[(sizeof(l1_desc_t) - 4)?-1: 1];
+
+typedef union {
+  struct {
+    uint32_t type : 2;
+    uint32_t reserved1 : 30;
+  } invalid;
+  struct {
+    uint32_t XN : 1;
+    uint32_t type : 1;
+    uint32_t B : 1;
+    uint32_t C : 1;
+    uint32_t AP : 2;
+    uint32_t TEX : 3;
+    uint32_t AP2 : 1;
+    uint32_t S : 1;
+    uint32_t nG : 1;
+    uint32_t base_addr : 20;
+  } small_page;
+  struct {
+    uint32_t type : 2;
+    uint32_t B : 1;
+    uint32_t C : 1;
+    uint32_t AP : 2;
+    uint32_t SBZ : 3;
+    uint32_t AP2 : 1;
+    uint32_t S : 1;
+    uint32_t nG : 1;
+    uint32_t TEX : 3;
+    uint32_t PXN : 1;
+    uint32_t base_addr : 16;
+  } large_page;
+  uint32_t value;
+} l2_desc_t;
+typedef char size_check_l2_desc_t[(sizeof(l2_desc_t) - 4)?-1: 1];
+
 static void cache_discovery(void)
 {
   ctrl_reg_t ctrl;
@@ -336,6 +418,11 @@ static void cache_discovery(void)
                   ccsidr.bit_field.NumSets + 1);
     }
   }
+}
+
+void do_mmu_init(void)
+{
+  /* disable l1 cache, */
 }
 
 void mmu_init(void)
