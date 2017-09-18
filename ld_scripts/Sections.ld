@@ -74,7 +74,7 @@ SECTIONS
 	
 	tlb : {
 		. = ALIGN(0x4000);
-		ttb0_base = .;
+		__tlb_base = .;
 		. += 0x1000;
 	} >iram
 	

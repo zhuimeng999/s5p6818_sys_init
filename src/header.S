@@ -235,7 +235,7 @@ set_loop:
 	bic		r1, r1, #(1 << 29)
 	mcr		p15, 0, r1, c1, c0, 0
 	
-	ldr		r0, =ttb0_base
+	ldr		r0, _tlb_base
 	mov		r1, #0x2B
 	orr		r1, r0, r1
 	mcr		p15, 0, r1, c2, c0, 0
@@ -288,6 +288,9 @@ _stack_start:
 	.word	__stack_start
 _stack_end:
 	.word	__stack_end
+	
+_tlb_base:
+    .word   __tlb_base
 
 _stack_per_cpu_size:
 	.word	__stack_percpu_size

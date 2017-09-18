@@ -420,13 +420,111 @@ static void cache_discovery(void)
   }
 }
 
+extern l1_desc_t  * _tlb_base;
 void do_mmu_init(void)
 {
-  /* disable l1 cache, */
+  /* disable l1 cache, mmu stuff  */
+  sctrl_reg_t sctrl;
+  ctrl_reg_t ctrl;
+  clidr_reg_t clidr;
+  csselr_reg_t csselr;
+  ccsidr_reg_t ccsidr;
+  uint32_t tmp = 0;
+  uint32_t way, set, line, way_offset;
+
+  __asm__ __volatile__ (
+      "mrc p15, 0, %0, c1, c0, 0\n\t"
+      : "=r" (sctrl.reg_value)
+      :
+      :
+  );
+  sctrl.bit_field.instruct_cache_enable = 0;
+  sctrl.bit_field.cache_enable = 0;
+  sctrl.bit_field.mmu_enable = 0;
+  __asm__ __volatile__ (
+      "mcr p15, 0, %0, c1, c0, 0\n\t"
+      :
+      : "r" (sctrl.reg_value)
+      :
+  );
+
+  __asm__ __volatile__ (
+      "mrc p15, 0, %0, c0, c0, 1\n\t"
+      : "=r" (ctrl.reg_value)
+      :
+      :
+  );
+
+  __asm__ __volatile__ (
+      "mrc p15, 1, %0, c0, c0, 1\n\t"
+      : "=r" (clidr.reg_value)
+      :
+      :
+  );
+
+  /* invalid all instruct cache */
+  __asm__ __volatile (
+      "mcr p15, 0, %0, c7, c5, 0\n\t"
+      :
+      : "r" (tmp)
+      :
+  );
+
+  for(uint32_t i = 0; i < CACHE_HIBERACHY_MAX; i++)
+  {
+    tmp = clidr.reg_value >> (i*3);
+    tmp &= 0b111;
+    if((tmp == CACHE_TYPE_NONE) || (tmp > CACHE_TYPE_UNIFIED) || (tmp == CACHE_TYPE_INSTRUCTION_ONLY))
+    {
+      break;
+    }
+
+    csselr.bit_field.Level = i;
+    csselr.bit_field.InD = 0;
+    __asm__ __volatile__ (
+        "mcr p15, 2, %1, c0, c0, 0\n\t"
+        "mrc p15, 1, %0, c0, c0, 0\n\t"
+        : "=r" (ccsidr.reg_value)
+        : "r" (csselr.reg_value)
+        :
+    );
+    set = ccsidr.bit_field.NumSets;
+    way = ccsidr.bit_field.Associativity;
+    line = ccsidr.bit_field.LineSize + 4;
+    way_offset = __builtin_clz(way);
+    for(uint32_t j = 0; i <= way; i++)
+    {
+      for(uint32_t k = 0; j <= set; j++)
+      {
+        tmp = i << 1; /* level */
+        tmp |= k << line;
+        tmp |= j << way_offset;
+        /* invalid all instruct cache */
+        __asm__ __volatile (
+            "mcr p15, 0, %0, c7, c6, 2\n\t"
+            :
+            : "r" (tmp)
+            :
+        );
+      }
+    }
+  }
+#define DEVICE_MEM_TYPE 0x1
+  /* make mmu table */
+  for(uint32_t i = 0; i < 16*1024; i++)
+  {
+    _tlb_base[i].section.type = 1;   /* section type*/
+    _tlb_base[i].section.super = 0;  /* not super */
+    _tlb_base[i].section.XN = 1; /* execute never */
+    _tlb_base[i].section.PXN = 1; /* privileged execute never*/
+    _tlb_base[i].section.AP2 = 0; /* dont disable write access */
+    _tlb_base[i].section.AP = (1 << 1) | (1 << 0); /* enable access from el0, and enable tlb cache*/
+  }
 }
 
 void mmu_init(void)
 {
 	cache_disable();
 	cache_discovery();
+	do_mmu_init();
 }
