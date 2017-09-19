@@ -518,8 +518,41 @@ void do_mmu_init(void)
     _tlb_base[i].section.XN = 1; /* execute never */
     _tlb_base[i].section.PXN = 1; /* privileged execute never*/
     _tlb_base[i].section.AP2 = 0; /* dont disable write access */
-    _tlb_base[i].section.AP = (1 << 1) | (1 << 0); /* enable access from el0, and enable tlb cache*/
+    _tlb_base[i].section.AP = (0 << 1) | (0 << 0); /* enable access from el0, and enable tlb cache*/
+    _tlb_base[i].section.B = (DEVICE_MEM_TYPE >> 0)&0x01;
+    _tlb_base[i].section.C = (DEVICE_MEM_TYPE >> 1)&0x01;
+    _tlb_base[i].section.TEX = (DEVICE_MEM_TYPE >> 2)&0x01;
+    _tlb_base[i].section.S = 0; /* not shared */
+    _tlb_base[i].section.NS = 1; /* not security*/
+    _tlb_base[i].section.nG = 0; /* global */
+    _tlb_base[i].section.Domain = 1;
+    _tlb_base[i].section.base_addr = i;
   }
+  /* domain configure */
+  tmp = 0x55555555;
+  __asm__ __volatile__ (
+          "mcr p15, 0, %0, c3, c0, 0\n\t"
+          :
+          : "r" (tmp)
+          :
+  );
+
+  __asm__ __volatile__ (
+      "mrc p15, 0, %0, c1, c0, 0\n\t"
+      : "=r" (sctrl.reg_value)
+      :
+      :
+  );
+  sctrl.bit_field.instruct_cache_enable = 1;
+  sctrl.bit_field.cache_enable = 1;
+  sctrl.bit_field.mmu_enable = 1;
+  sctrl.bit_field.afe = 0;
+  __asm__ __volatile__ (
+      "mcr p15, 0, %0, c1, c0, 0\n\t"
+      :
+      : "r" (sctrl.reg_value)
+      :
+  );
 }
 
 void mmu_init(void)

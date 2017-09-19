@@ -288,7 +288,8 @@ _stack_start:
 	.word	__stack_start
 _stack_end:
 	.word	__stack_end
-	
+
+.global _tlb_base
 _tlb_base:
     .word   __tlb_base
 
